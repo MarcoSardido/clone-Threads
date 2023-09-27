@@ -11,4 +11,5 @@ export default authMiddleware({
 export const config = {
       matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
 };
- 
+
+// YT 2:22:48
