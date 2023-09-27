@@ -32,7 +32,6 @@ interface Props {
         image: string;
     }
     btnTitle: string;
-
 }
 
 const PostThread = ({ userId }: { userId: string }) => {

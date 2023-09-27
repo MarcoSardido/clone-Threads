@@ -50,7 +50,7 @@ export async function fetchThreads(pageNumber = 1, pageSize = 20) {
     Additionally, the `children` field of each thread is populated with the corresponding `User` model, selecting only the `_id`, `name`, `parentId`, and `image` fields. 
     */
     const threadsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
-        .sort({ createdAt: 'desc' })
+        .sort({ createdAt: 'asc' })
         .skip(skipAmount)
         .limit(pageSize)
         .populate({ path: 'author', model: User })
@@ -82,4 +82,71 @@ export async function fetchThreads(pageNumber = 1, pageSize = 20) {
     const isNext = totalThreadsCount > skipAmount + threads.length
 
     return { threads, isNext }
+}
+
+export async function fetchThreadById(id: string) {
+    connectToDB()
+
+    try {
+        const thread = await Thread.findById(id)
+            .populate({
+                path: 'author',
+                model: User,
+                select: "_id id name image"
+            })
+            .populate({
+                path: 'children',
+                populate: [
+                    {
+                        path: 'author',
+                        model: User,
+                        select: '_id name parentId image'
+                    },
+                    {
+                        path: 'children',
+                        model: Thread,
+                        populate: {
+                            path: 'author',
+                            model: User,
+                            select: '_id id name parentId image'
+                        }
+                    }
+                ]
+            }).exec()
+
+        return thread
+    } catch (error: any) {
+        throw new Error(`Error fetching thread ${error.message}`)
+    }
+}
+
+export async function addCommentToThread(
+    threadId: string,
+    commentContent: string,
+    userId: string,
+    path: string
+) {
+    connectToDB()
+
+    try {
+        const originalThread = await Thread.findById(threadId)
+
+        if (!originalThread) throw new Error('Thread not found')
+
+        const commentThread = new Thread({
+            text: commentContent,
+            author: userId,
+            parentId: threadId
+        })
+
+        const savedCommentThread = await commentThread.save()
+
+        originalThread.children.push(savedCommentThread._id)
+
+        await originalThread.save()
+
+        revalidatePath(path)
+    } catch (error: any) {
+        throw new Error(`Error adding comment to thread ${error.message}`)
+    }
 }
